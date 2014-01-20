@@ -24,12 +24,21 @@
     <ClCompile Include="Matrix.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="MultilayerTask.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="GridData.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Matrix.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="MultilayerTask.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Task.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

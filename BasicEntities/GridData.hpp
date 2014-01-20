@@ -5,16 +5,14 @@ using namespace std;
 #include <string>
 #include "Matrix.hpp"
 
-#define dllExport _declspec(dllexport)
-
-enum dllExport SurferFileFormat
+enum SurferFileFormat
 {
 	DAT_FILE_FORMAT,
 	SURFER7_FILE_FORMAT,
 	SURFER6_FILE_FORMAT
 };
 
-class dllExport GridParameters 
+class GridParameters 
 {
 public:
 	float dX;
@@ -54,7 +52,7 @@ public:
 };
 
 //TODO: Many understandable throws
-class dllExport GridData
+class GridData
 {
 private:
 	//Grid Parameters

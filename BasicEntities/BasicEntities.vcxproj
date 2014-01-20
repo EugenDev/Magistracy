@@ -74,10 +74,13 @@
   <ItemGroup>
     <ClCompile Include="GridData.cpp" />
     <ClCompile Include="Matrix.cpp" />
+    <ClCompile Include="MultilayerTask.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="GridData.hpp" />
     <ClInclude Include="Matrix.hpp" />
+    <ClInclude Include="MultilayerTask.hpp" />
+    <ClInclude Include="Task.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
