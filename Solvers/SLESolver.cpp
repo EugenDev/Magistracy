@@ -75,7 +75,7 @@ void SolveSLE(const Matrix &A, Matrix &Z, const Matrix &b, float initialZ)
 		
 		printf("   Iteration:%d\terror:%f\n", iterations, error);
 			
-		if (error < 0.001)
+		if (error < 0.0001)
 			flag = 0;
 
 		iterations++;

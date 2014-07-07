@@ -53,6 +53,8 @@ public:
 	void Fill(float value);
 	void AddToDiagonal(float value);
 
+	Matrix Transpose();
+
 	//Деструктор
 	~Matrix(void);
 };

@@ -13,6 +13,8 @@ public:
 	//Returns general grid parameter for all tasks
 	GridParameters GetGeneralGridParameters();
 	GridData GetGeneralField();
+	//Initializing Z Matrix
+	void InitZ(Matrix &Z);
 	//Returns count of tasks
 	int GetLayersCount();
 	//Indexer

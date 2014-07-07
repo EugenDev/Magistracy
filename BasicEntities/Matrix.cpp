@@ -203,6 +203,20 @@ void Matrix::AddToDiagonal(float value)
 	return;
 }
 
+Matrix Matrix::Transpose()
+{
+	Matrix result(this->col, this->rows);
+	for(int i = 0; i < this->col; i++)
+	{
+		for(int j = 0; j < this->rows; j++)
+		{
+			result.elements[i * this->rows + j] = this->elements[j * this->col + i];
+		}
+	}
+
+	return result;
+}
+
 Matrix::~Matrix(void)
 {
 	delete [] elements;

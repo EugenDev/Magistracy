@@ -12,19 +12,28 @@
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="CudaDirectSolver.cu" />
+    <CudaCompile Include="CudaOperatorReplacer.cu" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CudaDirectSolver.hpp" />
+    <ClInclude Include="CudaHelpers.hpp" />
     <ClInclude Include="DirectSolver.hpp" />
     <ClInclude Include="DirectSolverBase.hpp" />
+    <ClInclude Include="FinalSolver.hpp" />
     <ClInclude Include="ReverseSolver.hpp" />
     <ClInclude Include="SLESolver.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DirectSolver.cpp" />
     <ClCompile Include="DirectSolverBase.cpp" />
+    <CudaCompile Include="FinalSolver.cu">
+      <FileType>Document</FileType>
+    </CudaCompile>
     <ClCompile Include="ReverseSolver.cpp" />
     <ClCompile Include="SLESolver.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="CudaOperatorReplacer.hpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{150278BF-4D38-4084-8F07-6EF510FAF016}</ProjectGuid>
@@ -78,6 +87,11 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     <CudaLink>
       <AdditionalDependencies>cudart.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </CudaLink>
+    <CudaCompile>
+      <AdditionalCompilerOptions>
+      </AdditionalCompilerOptions>
+      <AdditionalOptions>--ptxas-options=-v %(AdditionalOptions)</AdditionalOptions>
+    </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>

@@ -4,7 +4,7 @@ void Makeb(Matrix &Ank, Matrix &Fnk, Matrix &b);
 void MakeB(Matrix &Ank, Matrix &mB);
 void CheckTasks(vector<Task> tasks);
 
-GridData G_LinearisedSpeedDescent(Task task, float alpha)
+GridData LinearisedSpeedDescent(DirectSolverBase *directSolver, Task task, float alpha)
 {
 	GridParameters gp = task.grid.GetGridParameters();
 	int NX = gp.NX;
@@ -25,16 +25,14 @@ GridData G_LinearisedSpeedDescent(Task task, float alpha)
 	GridData exactGrid(task.exactSolution);
 	Matrix exactSolution(m, 1);
 	exactGrid.FillMatrix(exactSolution);
-
-	DirectSolver dSlvr(gp);
-
+	
 	printf("Solving with Linearised Speed Descent Method\n");
 
 	clock_t t0 = clock();
 
 	while (1)
 	{
-		dSlvr.SolveDirectTask(Z, A, Ank, task);
+		directSolver->SolveDirectTask(Z, A, Ank, task);
 		C = A - F;
 		Makeb(Ank, C, S);
 
@@ -75,7 +73,7 @@ GridData G_LinearisedSpeedDescent(Task task, float alpha)
 	return out;
 }
 
-GridData M_LinearisedSpeedDescent(Task task, float alpha)
+GridData LinearisedMinimalError(DirectSolverBase *directSolver, Task task, float alpha)
 {
 	GridParameters gp = task.grid.GetGridParameters();
 	int NX = gp.NX;
@@ -84,7 +82,7 @@ GridData M_LinearisedSpeedDescent(Task task, float alpha)
 	float dX = gp.dX;
 	float dY = gp.dY;
 
-	Matrix A(m, 1), Ank(m, m), Z(m, 1), S(m, 1), C(m, 1);
+	Matrix A(m, 1), Ank(m, m), Z(m, 1), S(m, 1);
 	Z.Fill(task.initialZ);
 
 	Matrix F(m, 1);
@@ -93,56 +91,51 @@ GridData M_LinearisedSpeedDescent(Task task, float alpha)
 	float error;
 	int iteration = 1;
 
-	GridData exactGrid(task.exactSolution);
 	Matrix exactSolution(m, 1);
-	exactGrid.FillMatrix(exactSolution);
-
-	DirectSolver dSlvr(gp);
-
-	printf("Solving with Linearised Speed Descent Method\n");
+	task.exactSolution.FillMatrix(exactSolution);
+	
+	printf("Solving with Linearised Minimal Error Method\n");
 
 	clock_t t0 = clock();
 
-	while (1)
+	while (true)
 	{
-		dSlvr.SolveDirectTask(Z, A, Ank, task);
-		C = A - F;
+		directSolver->SolveDirectTask(Z, A, Ank, task);
+		
+		Matrix C = F - A;
 		Makeb(Ank, C, S);
-
-		float n1 = S.Norm();
-		float n2 = (Ank * S).Norm();
+		float n1 = C.Norm();
+		float n2 = S.Norm();
 		float gamma = (alpha * n1 * n1) / (n2 * n2);
 
 		S *= gamma;
 
-		Z += S;
+		Z -= S;
 
 		switch (task.residualType)
 		{
-		case RESIDUAL_TYPE_RIGHTHAND:
-			error = (F - A).Norm() / F.Norm();
-			break;
-		case RESIDUAL_TYPE_EXACTSOLUTION:
-			error = (exactSolution + Z).Norm() / exactSolution.Norm();
-			break;
-		default:
-			throw "Unknown residual type";
+			case RESIDUAL_TYPE_RIGHTHAND:
+				error = (F - A).Norm() / F.Norm();
+				break;
+			case RESIDUAL_TYPE_EXACTSOLUTION:
+				error = (exactSolution + Z).Norm() / exactSolution.Norm();
+				break;
+			default:
+				throw "Unknown residual type";
 		}
 
-		printf("Iteration #%d.\tError = %f\n", iteration, error);
+		printf("Iteration #%d.\tError = %f.\n", iteration, error);
 
-		if(error < task.precision)
+		if (error < task.precision)
 			break;
 
 		iteration++;
 	}
 
 	printf("Solving finished for %f sec\n", (double)(clock() - t0) / CLOCKS_PER_SEC);
-	
-	Z *= -1.0f;
+	Z *= -1.0f; 
 	GridData out(gp);
 	memcpy(out.data, Z.elements, m * sizeof(float));
-
 	return out;
 }
 
@@ -275,72 +268,125 @@ void G_LinearisedSpeedDescentMultilayer()
 	return;*/
 }
 
-GridData G_LinearisedMinimalError(Task task, float alpha)
+#include <cublas.h>
+
+void CublasSolveSLE1(float *A, float *Z, float *b, int m)
 {
-	GridParameters gp = task.grid.GetGridParameters();
-	int NX = gp.NX;
-	int NY = gp.NY;
-	int m = NX * NY;
-	float dX = gp.dX;
-	float dY = gp.dY;
+	clock_t time;
+	printf(" Solving SLE ... \n");
+	time = clock();
 
-	Matrix A(m, 1), Ank(m, m), Z(m, 1), S(m, 1);
-	Z.Fill(task.initialZ);
+	int i;
 
-	Matrix F(m, 1);
-	task.grid.FillMatrix(F);
+	float *zpp = new float [m];
 
-	float error;
-	int iteration = 1;
+	float *devb;
+	float *devA;
+	float *devzpp;
+	float *devrk;
+	float *devArk;
+	float *devzp;
+	float *devpk;
+	float *devApk;
+	float *devTmp;
+	
+	cublasAlloc(m, sizeof(float), (void**)&devb);
+	cublasSetVector(m, sizeof(float), b, 1, devb, 1);
 
-	Matrix exactSolution(m, 1);
-	task.exactSolution.FillMatrix(exactSolution);
+	float normb = cublasSnrm2(m, devb, 1);
 
-	DirectSolver dSlvr(gp);
+	for (i = 0; i < m; i++)
+		zpp[i] = 10.0f;
 
-	printf("Solving with Linearised Minimal Error Method\n");
+	cublasAlloc(m, sizeof(float), (void**)&devzpp);
+	cublasSetVector(m, sizeof(float), zpp, 1, devzpp, 1);
+	
+	cublasAlloc(m * m, sizeof(float), (void**)&devA);
+	cublasSetMatrix(m, m, sizeof(float), A, m, devA, m);
 
-	clock_t t0 = clock();
+	cublasAlloc(m, sizeof(float), (void**)&devrk);
+	cublasScopy(m, devb, 1, devrk, 1);
 
-	while (1)
+	cublasSgemv('T', m, m, 1.0f, devA, m, devzpp, 1, -1.0f, devrk, 1);
+
+	float normr = cublasSnrm2(m, devrk, 1);
+
+	cublasAlloc(m, sizeof(float), (void**)&devArk);
+	cublasSgemv('T', m, m, 1.0f, devA, m, devrk, 1, 0.0f, devArk, 1);
+
+	float d = cublasSdot(m, devArk, 1, devrk, 1);
+
+	cublasAlloc(m, sizeof(float), (void**)&devzp);
+	cublasScopy(m, devzpp, 1, devzp, 1);
+
+	cublasSaxpy(m, - (normr * normr / d), devrk, 1, devzp, 1);
+
+	cublasAlloc(m, sizeof(float), (void**)&devpk);
+	cublasAlloc(m, sizeof(float), (void**)&devApk);
+	cublasAlloc(m, sizeof(float), (void**)&devTmp);
+
+	int flag = 1;
+	int iterations = 1;
+
+	while (flag == 1)
 	{
-		dSlvr.SolveDirectTask(Z, A, Ank, task);
+		cublasScopy(m, devb, 1, devrk, 1);
+		cublasSgemv('T', m, m, 1.0f, devA, m, devzp, 1, -1.0f, devrk, 1);
 
-		Matrix C = A - F;
-		Makeb(Ank, C, S);
-		float n1 = C.Norm();
-		float n2 = S.Norm();
-		float gamma = (alpha * n1 * n1) / (n2 * n2);
+		normr = cublasSnrm2(m, devrk, 1);
 
-		S *= gamma;
+		cublasScopy(m, devzp, 1, devpk, 1);
 
-		Z += S;
+		cublasSaxpy(m, -1.0f, devzpp, 1, devpk, 1);
 
-		switch (task.residualType)
-		{
-		case RESIDUAL_TYPE_RIGHTHAND:
-			error = (F - A).Norm() / F.Norm();
-			break;
-		case RESIDUAL_TYPE_EXACTSOLUTION:
-			error = (exactSolution + Z).Norm() / exactSolution.Norm();
-			break;
-		default:
-			throw "Unknown residual type";
-		}
+		cublasSgemv('T', m, m, 1.0f, devA, m, devrk, 1, 0.0f, devArk, 1);
+		cublasSgemv('T', m, m, 1.0f, devA, m, devpk, 1, 0.0f, devApk, 1);
 
-		printf("Iteration #%d.\tError = %f.\n", iteration, error);
+		float dot1 = cublasSdot(m, devArk, 1, devpk, 1);
+		float dot2 = cublasSdot(m, devrk, 1, devpk, 1);
+		float dot3 = cublasSdot(m, devArk, 1, devrk, 1);
+		float dot4 = cublasSdot(m, devApk, 1, devpk, 1);
 
-		if (error < task.precision)
-			break;
+		d = dot3 * dot4 - dot1 * dot1;
 
-		iteration++;
+		float gamma = ((normr * normr) * dot4 - dot2 * dot1) / d;
+		float beta = ((normr * normr) * dot1 - dot2 * dot3) / d;
+
+		cublasScopy(m, devzp, 1, devzpp, 1);
+
+		cublasSaxpy(m, -gamma, devrk, 1, devzp, 1);
+		cublasSaxpy(m, beta, devpk, 1, devzp, 1);
+
+		cublasScopy(m, devb, 1, devTmp, 1);
+
+		cublasSgemv('T', m, m, 1.0f, devA, m, devzp, 1, -1.0f, devTmp, 1);
+
+		double norm = cublasSnrm2(m, devTmp, 1);
+
+		double error = norm / normb;
+
+		printf("   Iteration:%d\terror:%f\n", iterations, error);
+
+		if (error < 0.001)
+			flag = 0;
+
+		iterations++;
 	}
+	printf("SLE solved with %d iterations for %f sec\n", iterations, (double)(clock() - time) / CLOCKS_PER_SEC);
 
-	printf("Solving finished for %f sec\n", (double)(clock() - t0) / CLOCKS_PER_SEC);
-	Z *= -1.0f; 
-	GridData out(gp);
-	memcpy(out.data, Z.elements, m * sizeof(float));
-	return out;
+	cublasGetVector(m, sizeof(float), devzp, 1, Z, 1);
+
+	cublasFree(devA);
+	cublasFree(devb);
+	cublasFree(devzp);
+	cublasFree(devzpp);
+	cublasFree(devArk);
+	cublasFree(devApk);
+	cublasFree(devrk);
+	cublasFree(devpk);
+	cublasFree(devTmp);
+
+	return;
 }
 
 GridData G_Newton(Task task)
@@ -365,6 +411,9 @@ GridData G_Newton(Task task)
 		dSlvr.SolveDirectTask(Z, A, Ank, task);
 
 		Ank.AddToDiagonal(alpha);
+
+		if(iteration == 2)
+			break;
 
 		Matrix F(m, 1);
 		memcpy(F.elements, task.grid.data, m * sizeof(float));
@@ -392,9 +441,10 @@ GridData G_Newton(Task task)
 
 		if (newtonError < 0.002)
 			break;
-
-		SolveSLE(B, Z, b, task.initialZ);
-
+		
+		//CublasSolveSLE1(B.elements, Z.elements, b.elements, m);
+		SolveSLE(B, Z, b, 1);
+		
 		iteration++;
 	}
 	
@@ -486,7 +536,7 @@ vector<GridData> G_GradientMultilayer(MultilayerTask mTask, float alpha)
 	mTask.GetGeneralField().FillMatrix(F);
 	
 	//Initialising of direct solver
-	DirectSolver dslvr(gp);
+	CudaDirectSolver dslvr(gp, true);
 
 	//Error value declaration
 	float precision = 100000000.0f;
@@ -568,4 +618,77 @@ void CheckTasks(vector<Task> tasks)
 	}
 	
 	return;
+}
+
+void MakeMagic(Matrix &Ank, Matrix &C, Matrix &S)
+{
+
+	return;
+}
+
+GridData LevenbergMarkwardt(DirectSolverBase *directSolver, Task task, float alpha)
+{
+	GridParameters gp = task.grid.GetGridParameters();
+	int NX = gp.NX;
+	int NY = gp.NY;
+	int m = NX * NY;
+	float dX = gp.dX;
+	float dY = gp.dY;
+
+	Matrix A(m, 1), Ank(m, m), Z(m, 1), S(m, 1);
+	Z.Fill(task.initialZ);
+
+	Matrix F(m, 1);
+	task.grid.FillMatrix(F);
+
+	float error;
+	int iteration = 1;
+
+	Matrix exactSolution(m, 1);
+	task.exactSolution.FillMatrix(exactSolution);
+	
+	printf("Solving with Levenberg-Markvardt Method\n");
+
+	clock_t t0 = clock();
+
+	while (true)
+	{
+		directSolver->SolveDirectTask(Z, A, Ank, task);
+		
+		Matrix C = F - A;
+		Makeb(Ank, C, S);
+		//MakeMagic(Ank, C, S
+		float n1 = C.Norm();
+		float n2 = S.Norm();
+		
+
+		S *= 1.0f;
+
+		Z -= S;
+
+		switch (task.residualType)
+		{
+			case RESIDUAL_TYPE_RIGHTHAND:
+				error = (F - A).Norm() / F.Norm();
+				break;
+			case RESIDUAL_TYPE_EXACTSOLUTION:
+				error = (exactSolution + Z).Norm() / exactSolution.Norm();
+				break;
+			default:
+				throw "Unknown residual type";
+		}
+
+		printf("Iteration #%d.\tError = %f.\n", iteration, error);
+
+		if (error < task.precision)
+			break;
+
+		iteration++;
+	}
+
+	printf("Solving finished for %f sec\n", (double)(clock() - t0) / CLOCKS_PER_SEC);
+	Z *= -1.0f; 
+	GridData out(gp);
+	memcpy(out.data, Z.elements, m * sizeof(float));
+	return out;
 }

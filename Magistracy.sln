@@ -6,6 +6,10 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Solvers", "Solvers\Solvers.vcxproj", "{150278BF-4D38-4084-8F07-6EF510FAF016}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Program", "Program\Program.vcxproj", "{665CE58E-869F-40CC-996D-FC836D1DD88E}"
+	ProjectSection(ProjectDependencies) = postProject
+		{4C000C3B-81BA-42B8-A446-7C4E96056054} = {4C000C3B-81BA-42B8-A446-7C4E96056054}
+		{150278BF-4D38-4084-8F07-6EF510FAF016} = {150278BF-4D38-4084-8F07-6EF510FAF016}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

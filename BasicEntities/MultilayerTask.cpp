@@ -38,6 +38,24 @@ GridData MultilayerTask::GetGeneralField()
 	return this->generalField;
 }
 
+void MultilayerTask::InitZ(Matrix &Z)
+{
+	GridParameters gp = this->generalField.GetGridParameters();
+	int L = this->GetLayersCount();
+	int M = gp.NX * gp.NY;
+	if (Z.GetColsCount() * Z.GetRowsCount() != L * M) 
+	{
+		throw new string("Inapropriate matrix");
+	}
+
+	for(int l = 0; l < L; l++)
+	{
+		std::fill(Z.elements + l * M, Z.elements + (l + 1) * M, _tasks[l].initialZ);
+	}
+
+	return;
+}
+
 Task MultilayerTask::operator[] (unsigned i)
 {
 	return _tasks[i];

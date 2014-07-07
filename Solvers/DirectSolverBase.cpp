@@ -32,7 +32,7 @@ GridData DirectSolverBase::SolveDirectTask(Task task)
 			break;
 
 		case TASK_TYPE_MAGNITOMETRY:
-			SolveDirectGP(task.grid.data, out.data, task.geltaJ, task.asimptHeight);
+			SolveDirectMP(task.grid.data, out.data, task.geltaJ, task.asimptHeight);
 			break;
 
 		default:
